@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'KMS Keys Stack for Secure Document Management System'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+
+Resources:
+  PrimaryBucketKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: 'KMS key for primary bucket encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+  SecondaryBucketKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: 'KMS key for secondary bucket encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+
+Outputs:
+  PrimaryBucketKeyArn:
+    Description: 'ARN of the KMS Key for primary bucket'
+    Value: !GetAtt PrimaryBucketKey.Arn
+    Export:
+      Name: 'KMSStack-PrimaryBucketKeyArn'
+  SecondaryBucketKeyArn:
+    Description: 'ARN of the KMS Key for secondary bucket'
+    Value: !GetAtt SecondaryBucketKey.Arn
+    Export:
+      Name: 'KMSStack-SecondaryBucketKeyArn'

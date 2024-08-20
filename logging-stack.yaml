@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Logging Stack for Secure Document Management System'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+
+Parameters:
+  SecondaryBucketName:
+    Type: String
+    Description: 'Name of the Secondary S3 bucket'
+
+Resources:
+  SecondaryBucketLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/aws/s3/${SecondaryBucketName}'
+      RetentionInDays: 30
+
+  CloudTrailLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: 'CloudTrail/logs'
+      RetentionInDays: 30
+
+Outputs:
+  CloudTrailLogGroupArn:
+    Description: 'ARN of the CloudTrail Log Group'
+    Value: !GetAtt CloudTrailLogGroup.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}:CloudTrailLogGroupArn'

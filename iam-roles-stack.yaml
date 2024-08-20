@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM Roles Stack for Secure Document Management System'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+
+Resources:
+  GlobalAccessRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+                - s3.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: GlobalAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:ListAllMyBuckets'
+                  - 's3:GetBucketLocation'
+                  - 's3:GetBucketVersioning'
+                  - 's3:PutBucketVersioning'
+                  - 's3:ReplicateObject'
+                  - 's3:ReplicateDelete'
+                  - 's3:ReplicateTags'
+                Resource: '*'
+
+Outputs:
+  GlobalAccessRoleArn:
+    Description: 'ARN of the Global Access IAM Role'
+    Value: !GetAtt GlobalAccessRole.Arn
+    Export:
+      Name: 'IAMStack-GlobalAccessRoleArn'

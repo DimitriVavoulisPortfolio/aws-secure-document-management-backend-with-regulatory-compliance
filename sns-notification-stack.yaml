@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SNS Notification Stack for Secure Document Management System'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+
+Parameters:
+  AdminEmail:
+    Type: String
+    Description: Email address for admin notifications
+
+Resources:
+  CostAlertTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: 'CostAlertTopic'
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AdminEmail
+
+  CostAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmName: 'MonthlyCostExceeds50Dollars'
+      AlarmDescription: 'Alarm when monthly cost exceeds $50'
+      MetricName: 'EstimatedCharges'
+      Namespace: 'AWS/Billing'
+      Statistic: Maximum
+      Period: 21600  # 6 hours
+      EvaluationPeriods: 1
+      Threshold: 50
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref CostAlertTopic
+
+Outputs:
+  CostAlertTopicArn:
+    Description: 'ARN of the Cost Alert SNS Topic'
+    Value: !Ref CostAlertTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-CostAlertTopicArn'

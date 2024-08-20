@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Primary Bucket Stack for Secure Document Management System with Cross-Region Replication'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Bucket Configuration"
+        Parameters:
+          - PrimaryBucketPrefix
+          - SecondaryBucketArn
+      - Label:
+          default: "Encryption Configuration"
+        Parameters:
+          - PrimaryKmsKeyArn
+          - SecondaryKmsKeyArn
+      - Label:
+          default: "IAM Configuration"
+        Parameters:
+          - GlobalAccessRoleArn
+
+Parameters:
+  PrimaryBucketPrefix:
+    Type: String
+    Description: Prefix for the primary S3 bucket name
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$
+    ConstraintDescription: Bucket prefix must be 3-63 characters long, start and end with a lowercase letter or number, and can contain only lowercase letters, numbers, and hyphens.
+  SecondaryBucketArn:
+    Type: String
+    Description: ARN of the Secondary S3 bucket
+    AllowedPattern: ^arn:aws:s3:::([a-z0-9.-]+)$
+    ConstraintDescription: Must be a valid S3 bucket ARN
+  PrimaryKmsKeyArn:
+    Type: String
+    Description: ARN of the KMS Key for primary bucket encryption
+    AllowedPattern: ^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$
+    ConstraintDescription: Must be a valid KMS key ARN
+  SecondaryKmsKeyArn:
+    Type: String
+    Description: ARN of the KMS Key for secondary bucket encryption
+    AllowedPattern: ^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$
+    ConstraintDescription: Must be a valid KMS key ARN
+  GlobalAccessRoleArn:
+    Type: String
+    Description: ARN of the IAM Role for global access
+    AllowedPattern: ^arn:aws:iam::[0-9]{12}:role\/[a-zA-Z_0-9+=,.@-]+$
+    ConstraintDescription: Must be a valid IAM role ARN
+
+Resources:
+  PrimaryBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: 
+        Fn::Join:
+          - '-'
+          - - !Ref PrimaryBucketPrefix
+            - !Ref AWS::AccountId
+            - !Ref AWS::Region
+            - !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !Ref PrimaryKmsKeyArn
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      ReplicationConfiguration:
+        Role: !Ref GlobalAccessRoleArn
+        Rules:
+          - Id: ReplicateEverything
+            Status: Enabled
+            Priority: 1
+            DeleteMarkerReplication: 
+              Status: Enabled
+            Destination:
+              Bucket: !Ref SecondaryBucketArn
+              EncryptionConfiguration:
+                ReplicaKmsKeyID: !Ref SecondaryKmsKeyArn
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
+            Filter:
+              Prefix: ""
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToGlacierAfter90Days
+            Status: Enabled
+            Transitions:
+              - StorageClass: Glacier
+                TransitionInDays: 90
+
+  PrimaryBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref PrimaryBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceTLSRequestsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub '${PrimaryBucket.Arn}'
+              - !Sub '${PrimaryBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+          - Sid: DenyIncorrectEncryptionHeader
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub '${PrimaryBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption': 'aws:kms'
+          - Sid: DenyUnencryptedObjectUploads
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub '${PrimaryBucket.Arn}/*'
+            Condition:
+              'Null':
+                's3:x-amz-server-side-encryption': 'true'
+
+Outputs:
+  PrimaryBucketName:
+    Description: 'Name of the Primary S3 bucket'
+    Value: !Ref PrimaryBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryBucketName'
+  PrimaryBucketArn:
+    Description: 'ARN of the Primary S3 bucket'
+    Value: !GetAtt PrimaryBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-PrimaryBucketArn'

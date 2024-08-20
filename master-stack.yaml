@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Updated Master Stack for Secure Financial Document Management System with Inlined CloudWatchLogsStack'
+
+Metadata:
+  Author:
+    Name: Dimitri Vavoulis
+    Description: Portfolio Project - Secure Document Management Backend
+  ProjectInfo:
+    CreatedDate: '2024-08-20'
+    Version: '1.0'
+
+Parameters:
+  SecondaryBucketPrefix:
+    Type: String
+    Description: Prefix for the secondary S3 bucket name
+  AdminEmail:
+    Type: String
+    Description: Email address for admin notifications
+
+Resources:
+  IAMRolesStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://cf-templates-18240smuuwzim-us-east-1.s3.amazonaws.com/sdm/iam-roles-stack.yaml'
+
+  KMSKeysStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: IAMRolesStack
+    Properties:
+      TemplateURL: 'https://cf-templates-18240smuuwzim-us-east-1.s3.amazonaws.com/sdm/kms-keys-stack.yaml'
+
+  # Inlined CloudWatchLogsStack
+  PrimaryBucketLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: '/aws/s3/PrimaryBucket'
+      RetentionInDays: 30
+
+  SecondaryBucketLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: '/aws/s3/SecondaryBucket'
+      RetentionInDays: 30
+
+  SNSNotificationStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: KMSKeysStack
+    Properties:
+      TemplateURL: 'https://cf-templates-18240smuuwzim-us-east-1.s3.amazonaws.com/sdm/sns-notification-stack.yaml'
+      Parameters:
+        AdminEmail: !Ref AdminEmail
+
+  SecondaryBucketStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - KMSKeysStack
+      - SNSNotificationStack
+    Properties:
+      TemplateURL: 'https://cf-templates-18240smuuwzim-us-east-1.s3.amazonaws.com/sdm/secondary-bucket-stack.yaml'
+      Parameters:
+        SecondaryBucketPrefix: !Ref SecondaryBucketPrefix
+
+Outputs:
+  GlobalAccessRoleArn:
+    Description: 'ARN of the Global Access IAM Role'
+    Value: !GetAtt IAMRolesStack.Outputs.GlobalAccessRoleArn
+  PrimaryBucketKeyArn:
+    Description: 'ARN of the KMS Key for primary bucket'
+    Value: !GetAtt KMSKeysStack.Outputs.PrimaryBucketKeyArn
+  SecondaryBucketKeyArn:
+    Description: 'ARN of the KMS Key for secondary bucket'
+    Value: !GetAtt KMSKeysStack.Outputs.SecondaryBucketKeyArn
+  SecondaryBucketArn:
+    Description: 'ARN of the Secondary S3 bucket'
+    Value: !GetAtt SecondaryBucketStack.Outputs.SecondaryBucketArn
+  SecondaryBucketName:
+    Description: 'Name of the Secondary S3 bucket'
+    Value: !GetAtt SecondaryBucketStack.Outputs.SecondaryBucketName
+  CostAlertTopicArn:
+    Description: 'ARN of the Cost Alert SNS Topic'
+    Value: !GetAtt SNSNotificationStack.Outputs.CostAlertTopicArn
+  PrimaryBucketLogGroupName:
+    Description: 'Name of the Primary Bucket Log Group'
+    Value: !Ref PrimaryBucketLogGroup
+  SecondaryBucketLogGroupName:
+    Description: 'Name of the Secondary Bucket Log Group'
+    Value: !Ref SecondaryBucketLogGroup
