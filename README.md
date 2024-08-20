@@ -171,7 +171,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 Dimitri Vavoulis - dimitrivavoulis3@gmail.com
 
 Project Link: [https://github.com/DimitriVavoulisPortfolio/aws-secure-document-management-backend-with-regulatory-compliance](https://github.com/DimitriVavoulisPortfolio/aws-secure-document-management-backend-with-regulatory-compliance)
-
----
-
-This project was developed as part of a professional portfolio to demonstrate expertise in cloud architecture, security, and regulatory compliance in AWS environments, with a focus on infrastructure-as-code using AWS CloudFormation.
