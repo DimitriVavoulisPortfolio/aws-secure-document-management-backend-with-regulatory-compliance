@@ -114,7 +114,7 @@ All components of this system are defined as CloudFormation stacks:
 ## Stack Details
 
 ### Master Stack
-- Coordinates the creation and dependencies of all other stacks
+- Coordinates the creation and dependencies of all other stacks except the CloudTrail Stack and the Primary Bucket Stack
 - Ensures proper sequencing of resource creation
 
 ### IAM Roles Stack
